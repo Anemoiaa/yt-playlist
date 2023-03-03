@@ -1,11 +1,5 @@
 from __future__ import print_function
 
-import os.path
-
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -13,8 +7,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+import isodate
+
 from youtube import Youtube
 from config import settings
+import utils
 
 SCOPES = [
     'https://www.googleapis.com/auth/youtube',
@@ -24,7 +21,7 @@ SCOPES = [
 
 def main():
     try:
-        with open('links.txt') as f:
+        with open(settings.LINKS_FILE) as f:
             links = [line.rstrip() for line in f]
     except BaseException as e:
         raise BaseException("Файл с ссылками не найден или оформлен неправильно!")
@@ -51,27 +48,29 @@ def main():
             print(f'На канале по ссылке {link} нет видео или мы столкнулись с неизвестной ошибкой...')
     print('Закончил...')
 
-    creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'client_secret.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+    creds = utils.get_credts(SCOPES)
+
 
     yt = Youtube(creds)
-    response_playlist = yt.create_playlist(input("Введите название плэйлиста:\n"))
+    playlist_name = utils.generate_playlist_name()
+    print(f'Создаю плейлист {playlist_name}')
+    response_playlist = yt.create_playlist(playlist_name)
     playlist_id = response_playlist.get('id')
     playlist_title = response_playlist['snippet']['title']
 
     for video_id in video_ids:
+        # get duration
+        request = yt.service.videos().list(
+            part="contentDetails",
+            id=video_id,
+        )
+        response = request.execute()
+
+        video_duration = isodate.parse_duration(response['items'][0]['contentDetails']['duration'])
+        max_duration = isodate.parse_duration(settings.MAX_DURATION)
+        if video_duration > max_duration:
+            continue
+
         request_body = {
             'snippet': {
                 'playlistId': playlist_id,
