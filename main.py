@@ -48,11 +48,11 @@ def main():
             print(f'На канале по ссылке {link} нет видео или мы столкнулись с неизвестной ошибкой...')
     print('Закончил...')
 
-    creds = utils.get_credts(SCOPES)
-
+    creds = utils.get_creds(SCOPES)
 
     yt = Youtube(creds)
     playlist_name = utils.generate_playlist_name()
+
     print(f'Создаю плейлист {playlist_name}')
     response_playlist = yt.create_playlist(playlist_name)
     playlist_id = response_playlist.get('id')
