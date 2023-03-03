@@ -8,8 +8,6 @@ DOTENV_FILE = os.path.join(BASE_DIR, '.env')
 
 
 class Settings(BaseSettings):
-    EMAIL: str
-    PASSWORD: str
     DELAY: float
 
 
